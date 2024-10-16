@@ -99,7 +99,8 @@ def plot_metrics(optimizers, experiments, metrics, data_path, x_label):
         metric_id = metric["id"]
         # ax = sns.pointplot(x='x', y=metric_id, hue='opt', kind='point', ci=None, data=metrics_df,
         #                    height=5, aspect=1.5, markers=markers)
-        ax = sns.barplot(x="x", y=metric_id, hue="opt", ci=None, data=metrics_df)
+        # ax = sns.barplot(x="x", y=metric_id, hue="opt", ci=None, data=metrics_df)
+        ax = sns.barplot(x="x", y=metric_id, hue="opt", ci=95, data=metrics_df)
         ax.xaxis.grid(True)
         ax.set_xlabel(x_label)
         ax.set_ylabel(metric["label"])
@@ -234,12 +235,13 @@ def plot_placement_per_node_type(
     # y_label = 'Number of App. Replicas (%)'
     # y_label = 'Number of App. Replicas'
     y_label = "Number of Replicas"
-    y_limit = 22
+    y_limit = 24
     for node_type in node_types:
         df = place_df[place_df["node"] == node_type["id"]]
 
         # ax = sns.barplot(x='x', y='place_percent', hue='opt', ci=None, data=df)
-        ax = sns.barplot(x="x", y="place", hue="opt", ci=None, data=df)
+        # ax = sns.barplot(x="x", y="place", hue="opt", ci=None, data=df)
+        ax = sns.barplot(x="x", y="place", hue="opt", ci=95, data=df)
         ax.xaxis.grid(True)
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
@@ -325,26 +327,46 @@ def plot_times(optimizers, experiments, data_path, fig_path=None):
                     .reset_index()
                 )
 
-                global_et = df[df["type"] == "global"]["elapsed_time"].mean()
+                global_df = df[df["type"] == "global"].reset_index()
+                cluster_df = df[df["type"] == "cluster"].reset_index()
+                if cluster_df.empty:
+                    cluster_df = global_df
+                df_map = {"global": global_df, "cluster": cluster_df}
+                for ctrl_type, ctrl_df in iteritems(df_map):
+                    for index, row in ctrl_df.iterrows():
+                        elapsed_time = row["elapsed_time"]
+                        if math.isnan(elapsed_time):
+                            elapsed_time = 0.0
+                        datum = {
+                            "opt": opt["label"],
+                            "run": run,
+                            "x": exp["x"],
+                            "elapsed_time": elapsed_time,
+                            "step": index,
+                            "ctrl_type": ctrl_type,
+                        }
+                        times_data.append(datum)
 
-                cluster_et = global_et
-                max_ctrl_id = df[df["type"] == "cluster"]["id"].max()
-                if not math.isnan(max_ctrl_id):
-                    # cluster_et = df[(df['type'] == 'cluster') & (df['id'] < max_ctrl_id - 1)]['elapsed_time'].mean()
-                    cluster_et = df[df["type"] == "cluster"]["elapsed_time"].mean()
+                # global_et = df[df["type"] == "global"]["elapsed_time"].mean()
 
-                elapsed_times = {"global": global_et, "cluster": cluster_et}
-                for ctrl_type, elapsed_time in iteritems(elapsed_times):
-                    if math.isnan(elapsed_time):
-                        elapsed_time = 0.0
-                    datum = {
-                        "opt": opt["label"],
-                        "run": run,
-                        "x": exp["x"],
-                        "elapsed_time": elapsed_time,
-                        "ctrl_type": ctrl_type,
-                    }
-                    times_data.append(datum)
+                # cluster_et = global_et
+                # max_ctrl_id = df[df["type"] == "cluster"]["id"].max()
+                # if not math.isnan(max_ctrl_id):
+                #     # cluster_et = df[(df['type'] == 'cluster') & (df['id'] < max_ctrl_id - 1)]['elapsed_time'].mean()
+                #     cluster_et = df[df["type"] == "cluster"]["elapsed_time"].mean()
+
+                # elapsed_times = {"global": global_et, "cluster": cluster_et}
+                # for ctrl_type, elapsed_time in iteritems(elapsed_times):
+                #     if math.isnan(elapsed_time):
+                #         elapsed_time = 0.0
+                #     datum = {
+                #         "opt": opt["label"],
+                #         "run": run,
+                #         "x": exp["x"],
+                #         "elapsed_time": elapsed_time,
+                #         "ctrl_type": ctrl_type,
+                #     }
+                #     times_data.append(datum)
 
     times_df = pd.DataFrame.from_records(times_data)
 
@@ -364,7 +386,8 @@ def plot_times(optimizers, experiments, data_path, fig_path=None):
     ctrl_types = ["global", "cluster"]
     for ctrl_type in ctrl_types:
         df = times_df[times_df["ctrl_type"] == ctrl_type]
-        ax = sns.barplot(x="x", y="elapsed_time", hue="opt", ci=None, data=df)
+        # ax = sns.barplot(x="x", y="elapsed_time", hue="opt", ci=None, data=df)
+        ax = sns.barplot(x="x", y="elapsed_time", hue="opt", ci=95, data=df)
         ax.xaxis.grid(True)
         ax.set_xlabel("Number of Subsystems")
         ax.set_ylabel("Execution Time (s)")
@@ -465,7 +488,7 @@ def main():
             "id": "weighted_migration_rate",
             "label": "Migration Cost (%)",
             "func": to_percent,
-            "y_limit": (0.0, 0.45),
+            "y_limit": (0.0, 0.55),
             "fig_file": os.path.join(fig_path, "fig_mc.png"),
         },
     ]
